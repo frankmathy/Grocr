@@ -24,10 +24,11 @@ import UIKit
 import Firebase
 
 class GroceryListTableViewController: UITableViewController {
-
+  
   // MARK: Constants
   let listToUsers = "ListToUsers"
   let ref = Database.database().reference(withPath: "grocery-items")
+  let usersRef = Database.database().reference(withPath: "online")
   
   // MARK: Properties 
   var items: [GroceryItem] = []
@@ -48,6 +49,8 @@ class GroceryListTableViewController: UITableViewController {
     userCountBarButtonItem.tintColor = UIColor.white
     navigationItem.leftBarButtonItem = userCountBarButtonItem
     
+    
+    user = User(uid: "FakeId", email: "hungry@person.food")
     ref.queryOrdered(byChild: "completed").observe(.value, with: { snapshot in
       var newItems: [GroceryItem] = []
       for item in snapshot.children {
@@ -59,7 +62,22 @@ class GroceryListTableViewController: UITableViewController {
       self.tableView.reloadData()
     })
     
-    user = User(uid: "FakeId", email: "hungry@person.food")
+    Auth.auth().addStateDidChangeListener { auth, user in
+      guard let user = user else { return }
+      self.user = User(uid: user.uid, email: user.email!)
+      
+      let currentUserRef = self.usersRef.child(self.user.uid)
+      currentUserRef.setValue(self.user.email)
+      currentUserRef.onDisconnectRemoveValue()
+    }
+    
+    usersRef.observe(.value, with: { snapshot in
+      if snapshot.exists() {
+        self.userCountBarButtonItem?.title = snapshot.childrenCount.description
+      } else {
+        self.userCountBarButtonItem?.title = "0"
+      }
+    })
   }
   
   // MARK: UITableView Delegate methods
